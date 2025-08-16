@@ -6,6 +6,7 @@ import json
 from urllib.parse import urljoin, urlparse
 import os
 import sys
+from datetime import datetime
 
 # Проверка наличия openpyxl для работы с Excel
 try:
@@ -22,6 +23,25 @@ class WebParser:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+
+    def create_output_folder(self, url):
+        """Создает папку для сохранения результатов с датой и временем"""
+        # Получаем текущую дату и время
+        now = datetime.now()
+        date_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+        
+        # Получаем домен сайта
+        domain = urlparse(url).netloc.replace('.', '_')
+        
+        # Создаем название папки
+        folder_name = f"parsed_{domain}_{date_time}"
+        
+        # Создаем папку, если её нет
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+            print(f"📁 Создана папка: {folder_name}")
+        
+        return folder_name
 
     def parse_website(self, url, selectors=None, max_pages=1, delay=1):
 
@@ -199,18 +219,29 @@ class WebParser:
 
 
 def quick_parse(url, max_pages=1, delay=1):
-
+    """
+    Быстрый парсинг сайта без лишних вопросов
+    
+    Args:
+        url (str): URL для парсинга
+        max_pages (int): Количество страниц (по умолчанию 1)
+        delay (int): Задержка между запросами (по умолчанию 1 секунда)
+    """
     print(f"🚀 Быстрый парсинг: {url}")
     print(f"📄 Страниц: {max_pages}, ⏱️ Задержка: {delay}с")
     
     parser = WebParser()
+    
+    # Создаем папку для результатов
+    output_folder = parser.create_output_folder(url)
+    
     data = parser.parse_website(url, max_pages=max_pages, delay=delay)
     
     if data:
         print(f"✅ Найдено {len(data)} элементов")
         
-        # Автоматически сохраняем во все форматы
-        base_filename = f"parsed_{urlparse(url).netloc.replace('.', '_')}"
+        # Автоматически сохраняем во все форматы в созданную папку
+        base_filename = os.path.join(output_folder, "parsed_data")
         parser.auto_save_all(data, base_filename)
         
         # Показываем превью
@@ -223,6 +254,8 @@ def quick_parse(url, max_pages=1, delay=1):
                     value = value[:100] + "..."
                 print(f"  {key}: {value}")
             print()
+        
+        print(f"📁 Результаты сохранены в папку: {output_folder}/")
     else:
         print("❌ Данные не найдены")
 
