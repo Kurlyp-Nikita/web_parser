@@ -5,6 +5,7 @@ import time
 import json
 from urllib.parse import urljoin, urlparse
 import os
+import sys
 
 # Проверка наличия openpyxl для работы с Excel
 try:
@@ -184,59 +185,74 @@ class WebParser:
         except Exception as e:
             print(f"Ошибка при сохранении в JSON: {e}")
 
+    def auto_save_all(self, data, base_filename='parsed_data'):
+        """Автоматическое сохранение во все форматы"""
+        if not data:
+            print("Нет данных для сохранения")
+            return
+        
+        print(f"\n💾 Сохраняем {len(data)} элементов...")
+        
+        # Сохраняем в Excel
+        if EXCEL_AVAILABLE:
+            self.save_to_excel(data, f"{base_filename}.xlsx")
+        
+        # Сохраняем в CSV
+        self.save_to_csv(data, f"{base_filename}.csv")
+        
+        # Сохраняем в JSON
+        self.save_to_json(data, f"{base_filename}.json")
+        
+        print("✅ Все файлы сохранены!")
 
-# Примеры использования
-def example_parsers():
+
+def quick_parse(url, max_pages=1, delay=1):
+    """
+    Быстрый парсинг сайта без лишних вопросов
+    
+    Args:
+        url (str): URL для парсинга
+        max_pages (int): Количество страниц (по умолчанию 1)
+        delay (int): Задержка между запросами (по умолчанию 1 секунда)
+    """
+    print(f"🚀 Быстрый парсинг: {url}")
+    print(f"📄 Страниц: {max_pages}, ⏱️ Задержка: {delay}с")
+    
     parser = WebParser()
-
-    # Пример 1: Парсинг новостей
-    print("=== Парсинг новостей ===")
-    news_data = parser.parse_website(
-        url="https://news.ycombinator.com/",
-        selectors={
-            'items': '.athing',
-            'title': '.titleline > a',
-            'score': '.score',
-            'author': '.hnuser'
-        },
-        max_pages=1
-    )
-    parser.save_to_excel(news_data, 'hacker_news.xlsx')
-
-    # Пример 2: Парсинг товаров (пример)
-    print("\n=== Парсинг товаров ===")
-    # Замените URL на реальный сайт
-    products_data = parser.parse_website(
-        url="https://example.com/products",
-        selectors={
-            'items': '.product-item',
-            'name': '.product-name',
-            'price': '.product-price',
-            'description': '.product-description'
-        },
-        max_pages=1
-    )
-    parser.save_to_excel(products_data, 'products.xlsx')
+    data = parser.parse_website(url, max_pages=max_pages, delay=delay)
+    
+    if data:
+        print(f"✅ Найдено {len(data)} элементов")
+        
+        # Автоматически сохраняем во все форматы
+        base_filename = f"parsed_{urlparse(url).netloc.replace('.', '_')}"
+        parser.auto_save_all(data, base_filename)
+        
+        # Показываем превью
+        print(f"\n📋 ПРЕВЬЮ (первые 3 элемента):")
+        print("-" * 50)
+        for i, item in enumerate(data[:3], 1):
+            print(f"Элемент {i}:")
+            for key, value in item.items():
+                if isinstance(value, str) and len(value) > 100:
+                    value = value[:100] + "..."
+                print(f"  {key}: {value}")
+            print()
+    else:
+        print("❌ Данные не найдены")
 
 
 if __name__ == "__main__":
-    # Создаем экземпляр парсера
-    parser = WebParser()
-
-    # Простой пример парсинга
-    print("Введите URL сайта для парсинга (или нажмите Enter для примера):")
-    url = input().strip()
-
-    if not url:
-        print("Запускаем пример парсинга...")
-        example_parsers()
+    # Проверяем аргументы командной строки
+    if len(sys.argv) > 1:
+        url = sys.argv[1]
+        max_pages = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+        delay = float(sys.argv[3]) if len(sys.argv) > 3 else 1
+        quick_parse(url, max_pages, delay)
     else:
-        print("Парсинг сайта...")
-        data = parser.parse_website(url, max_pages=1)
-
-        if data:
-            parser.save_to_excel(data, 'parsed_data.xlsx')
-            parser.save_to_csv(data, 'parsed_data.csv')
-            print(f"Найдено {len(data)} элементов")
+        # Если нет аргументов, запрашиваем URL
+        url = input("Введите URL для парсинга: ").strip()
+        if url:
+            quick_parse(url)
         else:
-            print("Данные не найдены")
+            print("❌ URL не может быть пустым!")
